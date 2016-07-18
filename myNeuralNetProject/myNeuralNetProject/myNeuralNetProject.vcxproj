@@ -120,7 +120,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <SDLCheck>true</SDLCheck>
-      <AdditionalIncludeDirectories>C:\Users\拓洋\Desktop\Hobby\c++\NeuralNetworkForMNIST\myNeuralNetProject\myNeuralNetProject</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>D:\myData\cpp_project\NeuralNetworkForMNIST\myNeuralNetProject\myNeuralNetProject</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
