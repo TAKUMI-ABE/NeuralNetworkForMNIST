@@ -10,6 +10,8 @@ const std::string trainImageFileName = "../../data/train-images-idx3-ubyte";
 const std::string trainLabelFileName = "../../data/train-labels-idx1-ubyte";
 const std::string testImageFileName = "../../data/t10k-images-idx3-ubyte";
 const std::string testLabelFileName = "../../data/t10k-labels-idx1-ubyte";
+std::vector<std::string> train_dat = { trainImageFileName, trainLabelFileName };
+std::vector<std::string> test_dat = { testImageFileName, testLabelFileName };
 const int MNIST_TRAIN_IMG_NUM = 60000;
 const int MNIST_TEST_IMG_NUM = 10000;
 const int MNIST_IMG_SIZE = 28 * 28;
@@ -19,6 +21,71 @@ const int MNIST_NUMBER_OF_OUTPUT_CLASS = 10;
 const int HIDDEN_LAYER_UNIT = 100;
 const double LEARNING_RATE_WEIGHT = 0.005;
 const double LEARNING_RATE_BIAS = 0.01;
+
+enum class mnist_data_type {train, test};
+
+class mnistParser {
+private :
+	std::ifstream src;
+	std::ifstream label;
+	std::vector<std::vector<char>> src_buf;
+	std::vector<char> label_buf;
+public:
+	mnistParser(std::vector<std::string>& dat, mnist_data_type Type);
+
+	Eigen::MatrixXd getInput(int index);
+	Eigen::MatrixXd getAnswer(int index);
+};
+
+mnistParser::mnistParser(std::vector<std::string>& dat, mnist_data_type Type)
+	: src(dat[0], std::ios::in | std::ios::binary),
+	label(dat[1], std::ios::in | std::ios::binary),
+	src_buf(60000, std::vector<char>(MNIST_IMG_SIZE)),
+	label_buf(60000) 
+{
+	if (!src || !label)
+		throw "[ERROR] Cannnot Open File";
+
+	src.seekg(SRC_HEADER_OFFSET);
+	label.seekg(LABEL_HEADER_OFFSET);
+
+	if (Type == mnist_data_type::train) {
+		src_buf.resize(MNIST_TRAIN_IMG_NUM);
+		for (auto i = 0; i < MNIST_TRAIN_IMG_NUM; i++)
+			src.read(&src_buf[i][0], MNIST_IMG_SIZE);
+
+		label.read(&label_buf.front(), MNIST_TRAIN_IMG_NUM);
+	}
+	else if (Type == mnist_data_type::test) {
+		label_buf.resize(MNIST_TEST_IMG_NUM);
+		for (auto i = 0; i < MNIST_TEST_IMG_NUM; i++)
+			src.read(&src_buf[i][0], MNIST_IMG_SIZE);
+
+		label.read(&label_buf.front(), MNIST_TEST_IMG_NUM);
+	}
+	else {
+		throw "[ERROR] unknown data type";
+	}
+};
+
+Eigen::MatrixXd mnistParser::getInput(int index) {
+	Eigen::MatrixXd input(MNIST_IMG_SIZE +1,1);
+
+	input(0,0) = static_cast<double>(0);
+	for (auto i = 0; i < MNIST_IMG_SIZE; i++)
+		input(i + 1, 0) = static_cast<unsigned char>(static_cast<unsigned char>(src_buf[index][i])) / 255.0;
+
+	return input;
+}
+
+Eigen::MatrixXd mnistParser::getAnswer(int index) {
+	Eigen::MatrixXd answer(MNIST_NUMBER_OF_OUTPUT_CLASS + 1, 1);
+
+	for (auto i = 1; i < MNIST_NUMBER_OF_OUTPUT_CLASS + 1; i++)
+		answer(i, 0) = ((i - 1) == static_cast<unsigned char>(label_buf[index])) ? 1 : 0;
+
+	return answer;
+}
 
 void test(
 	Eigen::MatrixXd &w_2,
@@ -31,8 +98,7 @@ void test(
 	Eigen::MatrixXd &y,
 	Eigen::MatrixXd &delta_2,
 	Eigen::MatrixXd &delta_3,
-	std::ifstream * const ifs_src,
-	std::ifstream * const ifs_label
+	mnistParser &test_data
 );
 
 Eigen::MatrixXd ReLU(Eigen::MatrixXd &u) {
@@ -76,32 +142,9 @@ int main(void)
 {
 
 	try {
-		/**
-		* read files of test and train data
-		*  - std::ios:in : read only
-		*  - std::ios:binary: format is "bianry"
-		*/
-		std::ifstream train_src(trainImageFileName, std::ios::in | std::ios::binary);
-		std::ifstream train_label(trainLabelFileName, std::ios::in | std::ios::binary);
-		std::ifstream test_src(testImageFileName, std::ios::in | std::ios::binary);
-		std::ifstream test_label(testLabelFileName, std::ios::in | std::ios::binary);
 
-		//! Error return if files not exist
-		if (!train_src || !train_label || !test_src || !test_label) {
-			throw "[ERROR] Cannnot Open File";
-		}
-
-		train_src.seekg(SRC_HEADER_OFFSET);
-		train_label.seekg(LABEL_HEADER_OFFSET);
-		test_src.seekg(SRC_HEADER_OFFSET);
-		test_label.seekg(LABEL_HEADER_OFFSET);
-
-		std::vector<std::vector<char>> src_buf(60000, std::vector<char>(28*28));
-		for (auto i = 0; i < 60000; i++)
-			train_src.read(&src_buf[i][0], 28 * 28);
-
-		std::vector<char> label_buf(60000);
-		train_label.read(&label_buf.front(), 60000);
+		mnistParser train_data(train_dat, mnist_data_type::train);
+		mnistParser test_data(test_dat, mnist_data_type::test);
 
 		//! input layer
 		Eigen::MatrixXd z(28 * 28 + 1, 1);
@@ -144,14 +187,9 @@ int main(void)
 				u_3.setZero();
 				delta_3.setZero();
 
-				// set z
-				z(0, 0) = static_cast<double>(0);
-				for (auto i = 0; i < 28*28; i++)
-					z(i + 1, 0) = static_cast<unsigned char>(static_cast<unsigned char>(src_buf[count][i])) / 255.0;
-
-				// set d
-				for (auto i = 1; i < MNIST_NUMBER_OF_OUTPUT_CLASS + 1; i++)
-					d(i,0) = ((i - 1) == static_cast<unsigned char>(label_buf[count])) ? 1 : 0;
+				// set input layer and answer
+				z = train_data.getInput(count);
+				d = train_data.getAnswer(count);
 
 				// forward propagation
 				u_2 = w_2 * z;
@@ -182,7 +220,7 @@ int main(void)
 				count++;
 
 				if (count % 10000 == 0)
-					test(w_2, w_3, u_2, u_3, d, z, z_2, y, delta_2, delta_3, &test_src, &test_label);
+					test(w_2, w_3, u_2, u_3, d, z, z_2, y, delta_2, delta_3, test_data);
 			}
 			n_epoch++;
 			count = 0;
@@ -208,16 +246,9 @@ void test(
 	Eigen::MatrixXd &y,
 	Eigen::MatrixXd &delta_2,
 	Eigen::MatrixXd &delta_3,
-	std::ifstream * const ifs_src,
-	std::ifstream * const ifs_label
+	mnistParser &test_data
 )
 {
-	std::vector<std::vector<char>> src_buf(10000, std::vector<char>(28 * 28));
-	for (auto i = 0; i < 10000; i++)
-		ifs_src->read(&src_buf[i][0], 28 * 28);
-
-	std::vector<char> label_buf(10000);
-	ifs_label->read(&label_buf.front(), 10000);
 
 	int count = 0;
 	int n_correct_answer = 0;
@@ -229,14 +260,9 @@ void test(
 		u_3.setZero();
 		delta_3.setZero();
 
-		// set z
-		z(0,0) = static_cast<double>(0);
-		for (auto i = 0; i < 28 * 28; i++)
-			z(i + 1, 0) = static_cast<unsigned char>(static_cast<unsigned char>(src_buf[count][i])) / 255.0;
-		
-		// set d
-		for (auto i = 1; i < MNIST_NUMBER_OF_OUTPUT_CLASS + 1; i++)
-			d(i,0) = ((i - 1) == static_cast<unsigned char>(label_buf[count])) ? 1 : 0;
+		// set input layer and answer
+		z = test_data.getInput(count);
+		d = test_data.getAnswer(count);
 
 		// forward propagation
 		u_2 = w_2 * z;
@@ -250,12 +276,6 @@ void test(
 
 		count++;
 	}
-
-	// clear ifs
-	ifs_src->clear();
-	ifs_src->seekg(SRC_HEADER_OFFSET);
-	ifs_label->clear();
-	ifs_label->seekg(LABEL_HEADER_OFFSET);
 
 	std::cout << "[INFO] Accuracy : " << static_cast<double>(n_correct_answer) / static_cast<double>(count) * 100.0 << std::endl;
 
