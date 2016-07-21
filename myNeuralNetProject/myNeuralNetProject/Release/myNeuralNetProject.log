@@ -1,5 +1,5 @@
 ﻿  main.cpp
-main.cpp(283): warning C4714: 関数 'const Eigen::Matrix<double,-1,-1,0,-1,-1> Eigen::DenseBase<Derived>::eval(void) const' がインライン関数ではなく、__forceinline として記述されています
+main.cpp(291): warning C4714: 関数 'const Eigen::Matrix<double,-1,-1,0,-1,-1> Eigen::DenseBase<Derived>::eval(void) const' がインライン関数ではなく、__forceinline として記述されています
           with
           [
               Derived=Eigen::GeneralProduct<Eigen::Matrix<double,-1,-1,0,-1,-1>,Eigen::Matrix<double,-1,-1,0,-1,-1>,5>
@@ -10,9 +10,9 @@ main.cpp(283): warning C4714: 関数 'const Eigen::Matrix<double,-1,-1,0,-1,-1> 
               Derived=Eigen::GeneralProduct<Eigen::Matrix<double,-1,-1,0,-1,-1>,Eigen::Matrix<double,-1,-1,0,-1,-1>,5>
           ]
   コード生成しています。
-  2 of 633 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
+  2 of 634 functions ( 0.3%) were compiled, the rest were copied from previous compilation.
     0 functions were new in current compilation
-    15 functions had inline decision re-evaluated but remain unchanged
+    5 functions had inline decision re-evaluated but remain unchanged
   コード生成が終了しました。
   myNeuralNetProject.vcxproj -> D:\myData\cpp_project\NeuralNetworkForMNIST\myNeuralNetProject\Release\myNeuralNetProject.exe
   myNeuralNetProject.vcxproj -> D:\myData\cpp_project\NeuralNetworkForMNIST\myNeuralNetProject\Release\myNeuralNetProject.pdb (Full PDB)

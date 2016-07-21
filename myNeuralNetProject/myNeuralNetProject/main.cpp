@@ -40,8 +40,8 @@ public:
 mnistParser::mnistParser(std::vector<std::string>& dat, mnist_data_type Type)
 	: src(dat[0], std::ios::in | std::ios::binary),
 	label(dat[1], std::ios::in | std::ios::binary),
-	src_buf(60000, std::vector<char>(MNIST_IMG_SIZE)),
-	label_buf(60000) 
+	src_buf(MNIST_TRAIN_IMG_NUM, std::vector<char>(MNIST_IMG_SIZE)),
+	label_buf(MNIST_TRAIN_IMG_NUM)
 {
 	if (!src || !label)
 		throw "[ERROR] Cannnot Open File";
@@ -51,12 +51,14 @@ mnistParser::mnistParser(std::vector<std::string>& dat, mnist_data_type Type)
 
 	if (Type == mnist_data_type::train) {
 		src_buf.resize(MNIST_TRAIN_IMG_NUM);
+		label_buf.resize(MNIST_TRAIN_IMG_NUM);
 		for (auto i = 0; i < MNIST_TRAIN_IMG_NUM; i++)
 			src.read(&src_buf[i][0], MNIST_IMG_SIZE);
 
 		label.read(&label_buf.front(), MNIST_TRAIN_IMG_NUM);
 	}
 	else if (Type == mnist_data_type::test) {
+		src_buf.resize(MNIST_TEST_IMG_NUM);
 		label_buf.resize(MNIST_TEST_IMG_NUM);
 		for (auto i = 0; i < MNIST_TEST_IMG_NUM; i++)
 			src.read(&src_buf[i][0], MNIST_IMG_SIZE);
@@ -126,6 +128,16 @@ double gaussDistribution(double mu, double sigma) {
 	return norm(mt);
 }
 
+Eigen::MatrixXd getRandomWeightMatrix(int rows, int cols) {
+	Eigen::MatrixXd w(rows, cols);
+
+	for (auto j = 0; j < rows; j++)
+		for (auto i = 0; i < cols; i++)
+			w(j, i) = (i == 0) ? static_cast<double>(0) : static_cast<double> (gaussDistribution(0, 0.01));
+
+	return w;
+}
+
 bool get_max_prob_val(Eigen::MatrixXd &y, Eigen::MatrixXd &d) {
 	int max_prob_val = 0;
 	double tmp_max_val = static_cast<double>(0.0);
@@ -151,28 +163,24 @@ int main(void)
 
 		// hidden layer
 		Eigen::MatrixXd w_2(HIDDEN_LAYER_UNIT + 1, 28 * 28 + 1);
-		// init w_2
-		for (auto j = 0; j < HIDDEN_LAYER_UNIT + 1; j++)
-			for (auto i = 0; i < 28 * 28 + 1; i++)
-				w_2(j,i) = (i == 0) ? static_cast<double>(0) : static_cast<double> (gaussDistribution(0, 0.01));
-
 		Eigen::MatrixXd u_2(HIDDEN_LAYER_UNIT + 1,1);
 		Eigen::MatrixXd z_2(HIDDEN_LAYER_UNIT + 1, 1);
 		Eigen::MatrixXd delta_2(HIDDEN_LAYER_UNIT + 1, 1);
 
 		// output layer
 		Eigen::MatrixXd w_3(MNIST_NUMBER_OF_OUTPUT_CLASS + 1, HIDDEN_LAYER_UNIT + 1);
-		// init w_3
-		for (auto j = 0; j < MNIST_NUMBER_OF_OUTPUT_CLASS + 1; j++)
-			for (auto i = 0; i < HIDDEN_LAYER_UNIT + 1; i++)
-				w_3(j, i) = (i == 0) ? static_cast<double>(0) : static_cast<double> (gaussDistribution(0, 0.01));
-
 		Eigen::MatrixXd u_3(MNIST_NUMBER_OF_OUTPUT_CLASS + 1, 1);
 		Eigen::MatrixXd delta_3(MNIST_NUMBER_OF_OUTPUT_CLASS + 1, 1);
 		Eigen::MatrixXd y(MNIST_NUMBER_OF_OUTPUT_CLASS + 1, 1);
 
 		// answer
 		Eigen::MatrixXd d(MNIST_NUMBER_OF_OUTPUT_CLASS + 1, 1);
+
+
+		// init weight matrix
+		w_2 = getRandomWeightMatrix(w_2.rows(), w_2.cols());
+		w_3 = getRandomWeightMatrix(w_3.rows(), w_3.cols());
+
 
 		int count = 0;
 		int n_epoch = 100;
@@ -204,7 +212,7 @@ int main(void)
 					for (int k = 1; k < delta_3.size(); k++)
 						delta_2(j,0) += u_2(j,0) > 0 ? delta_3(k,0) * w_3(k,j) : 0;
 				}
-				// update params
+				// update weight matrix
 				for (int j = 0; j < HIDDEN_LAYER_UNIT + 1; j++)
 					for (int k = 1; k < MNIST_NUMBER_OF_OUTPUT_CLASS + 1; k++)
 						w_3(k, j) -= (j == 0) ?
